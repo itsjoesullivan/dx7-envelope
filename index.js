@@ -9,11 +9,14 @@ export default class Envelope {
     this.rates = config.rates;
     this.currentLevel = 0;
 
+    this.sampleRate = 49096;
+
     this.decayIncrement = 0;
     this.advance(0);
 
     this.getADCurve();
     this.getReleaseCurve();
+
   }
 
   getADCurve() {
