@@ -28,7 +28,8 @@ export default class Envelope {
     let sameInARowCount = 0;
     let lastSeenValue = false;
 
-    while (curve.length < 1000000) {
+    let maxLength = this.sampleRate * 60;
+    while (curve.length < maxLength) {
 
       if (this.state === 3) {
         break;
@@ -47,7 +48,8 @@ export default class Envelope {
         break;
       }
     }
-    this.attackDecayCurve = curve;
+    this.attackDecayCurve = new Float32Array(curve.length);
+    this.attackDecayCurve.set(curve);
     return curve;
   }
 
@@ -66,7 +68,8 @@ export default class Envelope {
     let sameInARowCount = 0;
     let lastSeenValue = false;
 
-    while (curve.length < 1000000) {
+    let maxLength = this.sampleRate * 60;
+    while (curve.length < maxLength) {
       const nextValue = this.render();
 
 
@@ -97,7 +100,8 @@ export default class Envelope {
     }
 
 
-    this.releaseCurve = curve;
+    this.releaseCurve = new Float32Array(curve.length);
+    this.releaseCurve.set(curve);
     return curve;
   }
 
