@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "watchify main.js -o bundle.js -t [ babelify --presets [ es2015 ] ]"
   },
   "keywords": [],
   "author": "Joe Sullivan <itsjoesullivan@gmail.com> (http://joesul.li/van)",
@@ -15,5 +16,8 @@
     "babel-loader": "^6.2.4",
     "babel-preset-es2015": "^6.9.0",
     "babel-preset-react": "^6.5.0"
+  },
+  "devDependencies": {
+    "webpack": "^1.13.1"
   }
 }
