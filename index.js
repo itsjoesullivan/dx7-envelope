@@ -3,27 +3,35 @@ import outputLUT from './output-lut';
 
 
 export default class Envelope {
+
   constructor(context, config) {
     this.levels = config.levels;
     this.rates = config.rates;
     this.currentLevel = 0;
 
-    this.maxLevel = 0;
-
-    // noteOff has been called?
-    this.down = true;
-
     this.decayIncrement = 0;
     this.advance(0);
+
+    this.getADCurve();
+    this.getReleaseCurve();
   }
 
   getADCurve() {
-    console.log('getADCurve');
+    if (this.attackDecayCurve) {
+      return this.attackDecayCurve;
+    }
+
     const curve = [];
-    var sameInARowCount = 0;
-    var lastSeenValue = false;
-    while (curve.length < 100000) {
-      var nextValue = this.render();
+    let sameInARowCount = 0;
+    let lastSeenValue = false;
+
+    while (curve.length < 1000000) {
+
+      if (this.state === 3) {
+        break;
+      }
+
+      const nextValue = this.render();
 
       if (lastSeenValue === nextValue) {
         sameInARowCount++;
@@ -32,7 +40,7 @@ export default class Envelope {
       }
       lastSeenValue = nextValue;
       curve.push(nextValue);
-      if (sameInARowCount > 3 && curve.length > 10) {
+      if (sameInARowCount > 44100 && curve.length > 1000) {
         break;
       }
     }
@@ -41,24 +49,32 @@ export default class Envelope {
   }
 
   getReleaseCurve() {
-    console.log('getReleaseCurve');
+    if (this.releaseCurve) {
+      return this.releaseCurve;
+    }
 
-    this.advance(3);
-    this.rising = false;
-    this._targetMet = (level) => {
-      return level >= this.targetLevel;
-    };
+    this.currentLevel = 0;
+    this.levels[2] = Math.max.apply(Math, this.levels.slice(0, 3));
+    this.advance(2);
+    this.currentLevel = this.targetLevel;
 
     const curve = [];
 
-    var sameInARowCount = 0;
-    var lastSeenValue = false;
+    let sameInARowCount = 0;
+    let lastSeenValue = false;
 
-    while (curve.length < 10000) {
-      var nextValue = this.render();
-      if (typeof nextValue !== 'number') {
+    while (curve.length < 1000000) {
+      const nextValue = this.render();
+
+
+      if (this.state === 4) {
         break;
       }
+
+      if (this.state !== 3) {
+        continue;
+      }
+
 
       if (lastSeenValue === nextValue) {
         sameInARowCount++;
@@ -68,10 +84,16 @@ export default class Envelope {
       lastSeenValue = nextValue;
 
       curve.push(nextValue);
-      if (sameInARowCount > 3 && curve.length > 10) {
+
+      // Normalize assuming we are going down
+      curve[curve.length - 1] = curve[curve.length - 1] / curve[0];
+
+      if (sameInARowCount > 44100 && curve.length > 1000) {
         break;
       }
     }
+
+
     this.releaseCurve = curve;
     return curve;
   }
@@ -79,7 +101,6 @@ export default class Envelope {
   _getTickIncrement() {
     if (this.rising) {
       const newVal = this.decayIncrement * (2 + (this.targetLevel - this.currentLevel) / 256);
-      this.maxLevel = newVal;
       return newVal;
     } else {
       return -1 * this.decayIncrement;
@@ -87,54 +108,30 @@ export default class Envelope {
   }
 
   render() {
+    const newLevel = this.currentLevel + this._getTickIncrement();
 
-    if (this._stillActive()) {
-
-      let newLevel = this.currentLevel + this._getTickIncrement();
-
-      if (this._targetMet(newLevel)) {
-        this.currentLevel = this.targetLevel;
-        this.advance(this.state + 1);
-      } else {
-        this.currentLevel = newLevel;
-      }
+    if (this.rising === (newLevel >= this.targetLevel)) {
+      this.currentLevel = this.targetLevel;
+      this.advance(this.state + 1);
+    } else {
+      this.currentLevel = newLevel;
     }
-
 
     return outputLUT[Math.floor(this.currentLevel)];
   }
 
-  _stillActive() {
-    return true;
-    // Any time before note off + arrival at final point?
-    //return this.state < 3 || (this.state < 4 && !this.down);
-  }
-
-
-  _targetMet(level) {
-    return this.rising === (level >= this.targetLevel);
-  }
-
-
   advance(newState) {
+
     this.state = newState;
-    if (this.state < 4) {
-      let newLevel = this.levels[this.state];
-      this.targetLevel = Math.max(0, (outputLevel[newLevel] << 5) - 224);
-      this.rising = this.targetLevel > this.currentLevel;
-
-      this.qr = Math.min(63, (this.rates[this.state] * 41) >> 6);
-      this.decayIncrement = Math.pow(2, this.qr / 4) / 2048;
+    if (this.state === 4) {
+      return;
     }
-  }
 
-  noteOff() {
-    this.down = false;
-    this.advance(3);
-  }
+    const newLevel = this.levels[this.state];
+    this.targetLevel = Math.max(0, (outputLevel[newLevel] << 5) - 224);
+    this.rising = this.targetLevel > this.currentLevel;
 
-  isFinished() {
-    this.state === 4;
+    this.qr = Math.min(63, (this.rates[this.state] * 41) >> 6);
+    this.decayIncrement = Math.pow(2, this.qr / 4) / 2048;
   }
-
 }
