@@ -2,7 +2,7 @@
   "name": "dx7-envelope-generator",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "watchify main.js -o bundle.js -t [ babelify --presets [ es2015 ] ]",
