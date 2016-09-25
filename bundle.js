@@ -20,7 +20,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var Envelope = function () {
-  function Envelope(context, config) {
+  function Envelope(config) {
     _classCallCheck(this, Envelope);
 
     this.levels = config.levels;
@@ -30,10 +30,24 @@ var Envelope = function () {
     this.sampleRate = 49096;
 
     this.decayIncrement = 0;
+
+    // for calculating breakpoints
+    this._currentIndex = 0;
+    this._points = {};
+
     this.advance(0);
 
     this.getADCurve();
+
+    this.breakpoints = {};
+    this.breakpoints[0] = (this._points[1] - this._points[0]) / this.sampleRate;
+    this.breakpoints[1] = (this._points[2] - this._points[1]) / this.sampleRate;
+    this.breakpoints[2] = (this._points[3] - this._points[2]) / this.sampleRate;
+
+    this._points = {};
     this.getReleaseCurve();
+
+    this.breakpoints[3] = (this._points[4] - this._points[3]) / this.sampleRate;
   }
 
   _createClass(Envelope, [{
@@ -43,12 +57,15 @@ var Envelope = function () {
         return this.attackDecayCurve;
       }
 
+      this._currentIndex = 0;
+
       var curve = [];
       var sameInARowCount = 0;
       var lastSeenValue = false;
 
       var maxLength = this.sampleRate * 60;
       while (curve.length < maxLength) {
+        this._currentIndex++;
 
         if (this.state === 3) {
           break;
@@ -78,6 +95,8 @@ var Envelope = function () {
         return this.releaseCurve;
       }
 
+      this._currentIndex = 0;
+
       this.currentLevel = 0;
       this.levels[2] = Math.max.apply(Math, this.levels.slice(0, 3));
       this.advance(2);
@@ -90,6 +109,8 @@ var Envelope = function () {
 
       var maxLength = this.sampleRate * 60;
       while (curve.length < maxLength) {
+        this._currentIndex++;
+
         var nextValue = this.render();
 
         if (this.state === 4) {
@@ -148,6 +169,7 @@ var Envelope = function () {
   }, {
     key: 'advance',
     value: function advance(newState) {
+      this._points[newState] = this._currentIndex;
 
       this.state = newState;
       if (this.state === 4) {
@@ -223,9 +245,9 @@ console.log(babar(data2, {
 */
 
 var context = new AudioContext();
-var dx7Env = new _index2.default({}, {
-  levels: [99, 75, 75, 4],
-  rates: [50, 50, 50, 80]
+var dx7Env = new _index2.default({
+  levels: [99, 75, 0, 0],
+  rates: [50, 80, 10, 90]
 });
 var conf = {
   initialValueCurve: dx7Env.attackDecayCurve,

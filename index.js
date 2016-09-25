@@ -4,7 +4,7 @@ import outputLUT from './output-lut';
 
 export default class Envelope {
 
-  constructor(context, config) {
+  constructor(config) {
     this.levels = config.levels;
     this.rates = config.rates;
     this.currentLevel = 0;
@@ -12,11 +12,24 @@ export default class Envelope {
     this.sampleRate = 49096;
 
     this.decayIncrement = 0;
+
+    // for calculating breakpoints
+    this._currentIndex = 0;
+    this._points = {};
+
     this.advance(0);
 
     this.getADCurve();
+
+    this.breakpoints = {};
+    this.breakpoints[0] = (this._points[1] - this._points[0]) / this.sampleRate;
+    this.breakpoints[1] = (this._points[2] - this._points[1]) / this.sampleRate;
+    this.breakpoints[2] = (this._points[3] - this._points[2]) / this.sampleRate;
+
+    this._points = {};
     this.getReleaseCurve();
 
+    this.breakpoints[3] = (this._points[4] - this._points[3]) / this.sampleRate;
   }
 
   getADCurve() {
@@ -24,12 +37,15 @@ export default class Envelope {
       return this.attackDecayCurve;
     }
 
+    this._currentIndex = 0;
+
     const curve = [];
     let sameInARowCount = 0;
     let lastSeenValue = false;
 
     let maxLength = this.sampleRate * 60;
     while (curve.length < maxLength) {
+      this._currentIndex++;
 
       if (this.state === 3) {
         break;
@@ -58,6 +74,9 @@ export default class Envelope {
       return this.releaseCurve;
     }
 
+    this._currentIndex = 0;
+
+
     this.currentLevel = 0;
     this.levels[2] = Math.max.apply(Math, this.levels.slice(0, 3));
     this.advance(2);
@@ -70,6 +89,8 @@ export default class Envelope {
 
     let maxLength = this.sampleRate * 60;
     while (curve.length < maxLength) {
+      this._currentIndex++;
+
       const nextValue = this.render();
 
 
@@ -128,6 +149,7 @@ export default class Envelope {
   }
 
   advance(newState) {
+    this._points[newState] = this._currentIndex;
 
     this.state = newState;
     if (this.state === 4) {
